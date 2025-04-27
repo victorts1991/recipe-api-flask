@@ -58,6 +58,36 @@ def register_user():
     db.session.commit()
     return jsonify({"msg": "User created"}), 201
 
+@app.route('/login', methods=['POST'])
+def login():
+    """
+    Faz login do usuário e retorna um JWT.
+    ---
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: objetc
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+    responses:
+      200:
+        description: Login bem sucedido, retorna JWT
+      401:
+        description: Credenciais inválidas
+    """
+    data = request.get_json()
+    user = User.query.filter_by(username=data['username']).first()
+    if user and user.password == data['password']:
+        # Converter o ID para string
+        token = create_access_token(identity=str(user.id))
+        return jsonify({ "access_token": token }), 200
+    return jsonify({ "error": "Invalid credentials" }), 401
+
 
 # print(app.config['SECRET_KEY'])
 # print(app.config['CACHE_TYPE'])

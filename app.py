@@ -88,6 +88,12 @@ def login():
         return jsonify({ "access_token": token }), 200
     return jsonify({ "error": "Invalid credentials" }), 401
 
+@app.route('/protected', methods=['GET'])
+@jwt_required()
+def protected():
+    current_user_id = get_jwt_identity() # Retorna o 'identity' usado na criação do token
+    return jsonify({ "msg": f"Usuário com o ID {current_user_id} acessou a rota protegida" }), 200
+
 
 # print(app.config['SECRET_KEY'])
 # print(app.config['CACHE_TYPE'])

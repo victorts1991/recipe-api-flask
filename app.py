@@ -36,9 +36,9 @@ def register_user():
     parameters:
       - in: body
         name: body
-        required: true
         schema:
-          type: objetc
+          type: object
+          required: true
           properties:
             username:
               type: string
@@ -66,9 +66,9 @@ def login():
     parameters:
       - in: body
         name: body
-        required: true
         schema:
-          type: objetc
+          type: object
+          required: true
           properties:
             username:
               type: string
@@ -93,6 +93,172 @@ def login():
 def protected():
     current_user_id = get_jwt_identity() # Retorna o 'identity' usado na criação do token
     return jsonify({ "msg": f"Usuário com o ID {current_user_id} acessou a rota protegida" }), 200
+
+@app.route('/recipes', methods=['POST'])
+@jwt_required()
+def create_recipe():
+    """
+    Cria uma nova receita.
+    ---
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required: true
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            time_minutes:
+              type: integer
+    responses:
+      201:
+        description: Receita criada com sucesso
+      401:
+        description: Token não fornecido ou inválido
+    """
+    data = request.get_json()
+    new_recipe = Recipes(
+        title=data['title'],
+        description=data['description'],
+        time_minutes=data['time_minutes']
+    )
+    db.session.add(new_recipe)
+    db.session.commit()
+    return jsonify({ "msg": "Recipe created" }), 201
+
+@app.route('/recipes', methods=['GET'])
+@jwt_required()
+def get_recipes():
+    """
+    Lista receitas com filtros opcionais.
+    ---
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: query
+        name: description
+        required: false
+        type: string
+        description: Filtro por descrição
+      - in: query
+        name: max_time
+        type: integer
+        required: false
+        description: Tempo máximo de preparo (minutos)
+    responses:
+      201:
+        description: Lista de receitas filtradas
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id: 
+                type: integer
+              title:
+                type: string
+              description:
+                type: string
+              time_minutes:
+                type: integer
+    """
+
+    description = request.args.get('description')
+    max_time = request.args.get('max_time')
+
+    query = Recipes.query
+
+    if description:
+        query = query.filter(Recipes.description.ilike(f"%{description}%"))
+    if max_time:
+        query = query.filter(Recipes.time_minutes <= max_time)
+
+    recipes = query.all()
+    return jsonify([
+        {
+            "id": r.id,
+            "title": r.title,
+            "description": r.description,
+            "time_minutes": r.time_minutes
+        }
+        for r in recipes
+    ])
+
+@app.route('/recipes/<int:recipe_id>', methods=['PUT'])
+@jwt_required()
+def update_recipe(recipe_id):
+    """
+    Atualiza uma receita existente.
+    ---
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: recipe_id
+        required: true
+        type: integer
+    responses:
+      201:
+        description: Receita deletada com sucesso
+      404: 
+        description: Receita não encontrada
+      401:
+        description: Token não fornecido ou inválido
+    """
+    data = request.get_json()
+    recipe = Recipes.query.get_or_404(recipe_id)
+    if 'title' in data:
+        recipe.title = data['title']
+    if 'description' in data:
+        recipe.description = data['description']
+    if 'time_minutes' in data:
+        recipe.time_minutes = data['time_minutes']
+
+    db.session.commit()
+    return jsonify({ "msg": "Recipe updated" }), 200
+
+@app.route('/recipes/<int:recipe_id>', methods=['DELETE'])
+@jwt_required()
+def delete_recipe(recipe_id):
+    """
+    Deleta uma receita existente.
+    ---
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: recipe_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            time_minutes:
+              type: integer
+    responses:
+      201:
+        description: Receita atualizada com sucesso
+      404: 
+        description: Receita não encontrada
+      401:
+        description: Token não fornecido ou inválido
+    """
+    recipe = Recipes.query.get_or_404(recipe_id)
+    db.session.delete(recipe)
+    db.session.commit()
+    return jsonify({ "msg": "Recipe deleted" }), 200
+
 
 
 # print(app.config['SECRET_KEY'])

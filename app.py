@@ -11,6 +11,12 @@ app = Flask(__name__)
 # importa as configuracoes do arquivo config.py
 app.config.from_object('config')
 
+# Por alguma razão inserindo essas configurações no arquivo de config, as mesmas não são recuperadas, por isso estão sendo definidas aqui mesmo
+app.config["SWAGGER"] = {
+    "title": "Catálogo de receitas",
+    "uiversion": 3
+}
+
 db = SQLAlchemy(app) 
 jwt = JWTManager(app)
 swagger = Swagger(app)
